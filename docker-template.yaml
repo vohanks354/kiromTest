@@ -12,7 +12,9 @@ metadata:
 labels:
   template: wordpress-mysql
 
-
+#############################################################################
+# Setting Parameter
+#############################################################################
 parameters:
   - name: APPLICATION_NAME
     description: >
@@ -61,3 +63,60 @@ parameters:
     description: Database user password
     generate: expression
     from: "[a-zA-Z0-9]{16}"
+
+  #############################################################################
+  # MySQL PersistentVolumeClaim
+  #############################################################################
+  - kind: PersistentVolumeClaim
+    apiVersion: v1
+    metadata:
+      name: ${APPLICATION_NAME}-mysql
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+
+  #############################################################################
+  # MySQL DeploymentConfig
+  #############################################################################
+  - kind: DeploymentConfig
+    apiVersion: v1
+    metadata:
+      name: ${APPLICATION_NAME}-mysql
+      annotations:
+        description: Defines how to deploy the database
+    spec:
+      strategy:
+        type: Recreate
+      triggers:
+        - type: ConfigChange
+      replicas: 1
+      selector:
+        name: ${APPLICATION_NAME}-mysql
+      template:
+        metadata:
+          name: ${APPLICATION_NAME}-mysql
+          labels:
+            name: ${APPLICATION_NAME}-mysql
+        spec:
+          containers:
+            - name: mysql
+              image: openshift3/mysql-55-rhel7
+              ports:
+                - containerPort: 3306
+              env:
+                - name: MYSQL_USER
+                  value: ${DATABASE_USER}
+                - name: MYSQL_PASSWORD
+                  value: ${DATABASE_PASSWORD}
+                - name: MYSQL_DATABASE
+                  value: ${DATABASE_NAME}
+              volumeMounts:
+                - name: ${APPLICATION_NAME}-mysql-data
+                  mountPath: /var/lib/mysql/data
+          volumes:
+            - name: ${APPLICATION_NAME}-mysql-data
+              persistentVolumeClaim:
+                claimName: ${APPLICATION_NAME}-mysql
