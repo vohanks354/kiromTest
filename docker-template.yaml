@@ -1,0 +1,63 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: wordpress-mysql
+  annotations:
+    openshift.io/display-name: WordPress + MySQL
+    description: >
+      A WordPress application with a MySQL database using persistent storage
+      for WordPress uploads, WordPress plugins, and MySQL data.
+    tags: instant-app,php,wordpress
+    iconClass: icon-php
+labels:
+  template: wordpress-mysql
+
+
+parameters:
+  - name: APPLICATION_NAME
+    description: >
+      The name of the application that will be used as a prefix for services,
+      routes, images, etc
+    value: wordpress
+    required: true
+
+  - name: SOURCE_REPOSITORY_URL
+    description: The URL of the repository with your application source code
+    value: https://github.com/jaredhocutt/openshift-wordpress.git
+    required: true
+
+  - name: SOURCE_REPOSITORY_REF
+    description: >
+      Set this to a branch name, tag or other ref of your repository if you
+      are not using the default branch
+  - name: CONTEXT_DIR
+    description: >
+      Set this to the relative path to your project if it is not in the root
+      of your repository
+    value: wordpress
+
+  - name: GITHUB_WEBHOOK_SECRET
+    description: A secret string used to configure the GitHub webhook
+    generate: expression
+    from: "[a-zA-Z0-9]{40}"
+
+  - name: APPLICATION_DOMAIN
+    description: >
+      The exposed hostname that will route to the wordpress service, if left
+      blank a value will be defaulted
+    value:
+
+  - name: DATABASE_NAME
+    description: Database name
+    value: wordpress
+    required: true
+
+  - name: DATABASE_USER
+    description: Database user name
+    value: wordpress
+    required: true
+
+  - name: DATABASE_PASSWORD
+    description: Database user password
+    generate: expression
+    from: "[a-zA-Z0-9]{16}"
