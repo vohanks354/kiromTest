@@ -9,4 +9,4 @@ FROM php:7.3-apache
 # RUN php composer-setup.php --install-dir=. --filename=composer
 # RUN mv composer /usr/local/bin/
 COPY . /var/www/html/
-# EXPOSE 80
+EXPOSE 80
