@@ -1,6 +1,6 @@
 # COPY . /var/www/html/
 
-FROM php:7.3-apache
+FROM pensiero/apache-php-mysql:php7.4
 #Install git
 # RUN yum install -y git && docker-php-ext-install pdo pdo_mysql mysqli
 # RUN a2enmod rewrite
