@@ -25,7 +25,7 @@ RUN docker-php-ext-install -j$(nproc) mysqli pdo_mysql gd zip pcntl exif
 RUN a2enmod headers expires rewrite
 
 # Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+# COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 # Set working directory to workspace
 WORKDIR /var/www
