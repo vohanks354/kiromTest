@@ -1,16 +1,15 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: wordpress-mysql
+  name: myphp
   annotations:
-    openshift.io/display-name: WordPress + MySQL
+    openshift.io/display-name: Php + MySQL
     description: >
-      A WordPress application with a MySQL database using persistent storage
-      for WordPress uploads, WordPress plugins, and MySQL data.
-    tags: instant-app,php,wordpress
+      aplikasi yang didalamnya ada Php dan MySQL
+    tags: instant-app,php,MySQL
     iconClass: icon-php
 labels:
-  template: wordpress-mysql
+  template: php-mysql
 
 #############################################################################
 # Setting Parameter
@@ -32,11 +31,6 @@ parameters:
     description: >
       Set this to a branch name, tag or other ref of your repository if you
       are not using the default branch
-  - name: CONTEXT_DIR
-    description: >
-      Set this to the relative path to your project if it is not in the root
-      of your repository
-    value: wordpress
 
   - name: GITHUB_WEBHOOK_SECRET
     description: A secret string used to configure the GitHub webhook
@@ -61,45 +55,172 @@ parameters:
 
   - name: DATABASE_PASSWORD
     description: Database user password
-    generate: expression
-    from: "[a-zA-Z0-9]{16}"
+    value: kirom
 
-  #############################################################################
-  # MySQL PersistentVolumeClaim
-  #############################################################################
-  - kind: PersistentVolumeClaim
-    apiVersion: v1
-    metadata:
-      name: ${APPLICATION_NAME}-mysql
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      resources:
-        requests:
-          storage: 1Gi
+  - name: DATABASE_ROOT_PASSWORD
+    description: Database user root password
+    value: root
 
-  #############################################################################
-  # MySQL DeploymentConfig
-  #############################################################################
-  - kind: DeploymentConfig
-    apiVersion: v1
-    metadata:
-      name: ${APPLICATION_NAME}-mysql
+#############################################################################
+# PHP 
+#############################################################################
+
+objects:
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    annotations:
+    labels:
+      app: 
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+    labels:
+      app: ${APPLICATION_NAME}-kirom
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    failedBuildsHistoryLimit: 5
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}-kirom:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: /
+      git:
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: php:7.3
+          namespace: openshift
+      type: Source
+    successfulBuildsHistoryLimit: 5
+    triggers:
+    - github:
+        secret: ${SECRET}
+      type: GitHub
+    - generic:
+        secret: ${SECRET}
+      type: Generic
+    - type: ConfigChange
+    - imageChange:
+      type: ImageChange
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+    labels:
+      app: ${APPLICATION_NAME}-kirom
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APPLICATION_NAME}-kirom
+      deploymentconfig: ${APPLICATION_NAME}-kirom
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+        labels:
+          app: ${APPLICATION_NAME}-kirom
+          deploymentconfig: ${APPLICATION_NAME}-kirom
+      spec:
+        containers:
+        - env:
+          - name: DATABASE_NAME
+            value: ${APPLICATION_NAME}-DB
+          - name: DATABASE_PASSWORD
+            value: ${PASSWORD}
+          - name: DATABASE_SERVICE_NAME
+            value: ${APPLICATION_NAME}-SVC
+          - name: DATABASE_USER
+            value: ${DATABASE_USER}
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}-kirom
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APPLICATION_NAME}-kirom
+        from:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}-kirom:latest
+      type: ImageChange
+
+#############################################################################
+# MySQL PersistentVolumeClaim
+#############################################################################
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: ${APPLICATION_NAME}-claim
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Mi
+    storageClassName: gp2
+    volumeMode: Filesystem
+
+#############################################################################
+# MySQL DeploymentConfig
+#############################################################################
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+      name: ${APPLICATION_NAME}-db
       annotations:
         description: Defines how to deploy the database
-    spec:
+  spec:
       strategy:
         type: Recreate
       triggers:
         - type: ConfigChange
       replicas: 1
       selector:
-        name: ${APPLICATION_NAME}-mysql
+        name: ${APPLICATION_NAME}-db
       template:
         metadata:
-          name: ${APPLICATION_NAME}-mysql
+          name: ${APPLICATION_NAME}-db
           labels:
-            name: ${APPLICATION_NAME}-mysql
+            name: ${APPLICATION_NAME}-db
         spec:
           containers:
             - name: mysql
@@ -119,4 +240,47 @@ parameters:
           volumes:
             - name: ${APPLICATION_NAME}-mysql-data
               persistentVolumeClaim:
-                claimName: ${APPLICATION_NAME}-mysql
+                claimName: ${APPLICATION_NAME}-claim
+
+#############################################################################
+# Service 
+#############################################################################
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+    name: ${APPLICATION_NAME}-svc
+    namespace: openshift
+    labels:
+      app: ${APPLICATION_NAME}-svc
+  spec:
+    ports:
+    - name: 8080-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    selector:
+      app: ${APPLICATION_NAME}-svc
+      deploymentconfig: ${APPLICATION_NAME}-svc
+    type: ClusterIP
+    sessionAffinity: None
+
+#############################################################################
+# Route 
+#############################################################################
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    name: ${APPLICATION_NAME}-route
+    namespace: openshift
+    labels:
+      app: ${APPLICATION_NAME}-route
+    annotations:
+  spec:
+    to:
+      kind: Service
+      name: ${APPLICATION_NAME}-svc
+      weight: 100
+    port:
+      targetPort: 8080-tcp
+  wildcardPolicy: None

@@ -1,0 +1,130 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: dc-latihan1
+  annotations:
+    openshift.io/display-name: Php + MySQL
+    description: >
+      aplikasi yang didalamnya ada Php dan MySQL
+    tags: instant-app,php,MySQL
+    iconClass: icon-php
+labels:
+  template: dc-latihan1
+
+#############################################################################
+# Setting Parameter
+#############################################################################
+parameters:
+  - name: APPLICATION_NAME
+    description: >
+      The name of the application that will be used as a prefix for services,
+      routes, images, etc
+    value: wordpress
+    required: true
+
+#############################################################################
+# PHP 
+#############################################################################
+
+objects:
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    annotations:
+    labels:
+      app: 
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+    labels:
+      app: ${APPLICATION_NAME}-kirom
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    failedBuildsHistoryLimit: 5
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}-kirom:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    strategy:
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: php:7.3
+          namespace: openshift
+      type: Source
+    successfulBuildsHistoryLimit: 5
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+    labels:
+      app: ${APPLICATION_NAME}-kirom
+    name: ${APPLICATION_NAME}-kirom
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APPLICATION_NAME}-kirom
+      deploymentconfig: ${APPLICATION_NAME}-kirom
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+        labels:
+          app: ${APPLICATION_NAME}-kirom
+          deploymentconfig: ${APPLICATION_NAME}-kirom
+      spec:
+        containers:
+        - env:
+          - name: DATABASE_NAME
+            value: quotesdb
+          - name: DATABASE_PASSWORD
+            value: ${PASSWORD}
+          - name: DATABASE_SERVICE_NAME
+            value: quotesdb
+          - name: DATABASE_USER
+            value: quoteapp
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}-kirom
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APPLICATION_NAME}-kirom
+        from:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}-kirom:latest
+      type: ImageChange
