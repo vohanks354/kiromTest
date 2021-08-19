@@ -13,6 +13,6 @@ FROM centos/httpd-24-centos7:2.4
 
 # EXPOSE 80
 
-COPY . /var/www/html
+COPY helloworld.php /var/www/html
 
 # CMD ["/usr/sbin/init"]
