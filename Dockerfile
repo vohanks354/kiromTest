@@ -10,7 +10,7 @@ RUN yum module enable php:remi-8.0 -y
 # RUN yum install php php-cli php-common 
 
 # (ini untuk install php8 on nginx)
-RUN yum install php php-cli php-common php-fpm
+RUN yum install -y php php-cli php-common php-fpm
 
 RUN chmod -R 777 /var/www/html
 
