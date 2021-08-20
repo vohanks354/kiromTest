@@ -1,9 +1,9 @@
 FROM centos:8
 
-USER 0
-# install apache web server
-RUN yum -y install httpd
-
-RUN systemctl enable httpd
-CMD ["/usr/sbin/apache2ctl", "-DFOREGROUND"]
-# RUN systemctl status httpd
+LABEL maintainer="admin@example1.com"
+RUN dnf update -y
+RUN dnf upgrade -y
+RUN dnf install epel-release -y
+RUN dnf install nginx -y
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
