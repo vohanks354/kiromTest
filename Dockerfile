@@ -8,5 +8,5 @@ RUN dnf install nginx -y
 
 USER 0
 COPY test.php /var/www/html
-EXPOSE 80
+# EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
