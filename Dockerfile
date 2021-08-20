@@ -5,5 +5,5 @@ USER 0
 RUN yum -y install httpd
 
 RUN systemctl enable httpd
-CMD run-httpd
+CMD ["/usr/sbin/apache2ctl", "-DFOREGROUND"]
 # RUN systemctl status httpd
