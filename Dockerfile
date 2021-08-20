@@ -6,4 +6,4 @@ RUN yum -y install httpd
 
 RUN systemctl enable httpd
 CMD run-httpd
-RUN systemctl status httpd
+# RUN systemctl status httpd
