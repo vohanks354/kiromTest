@@ -1,32 +1,79 @@
-# ini sudah bisa jalan di docker #
-# di dalamnya ada centos7 httpd dan php #
-# versi di docker hub adalah vohanks354/mgs-httpd-php:green #
+FROM rhscl/s2i-core-rhel7:1
 
+# Apache HTTP Server image.
+#
+# Volumes:
+#  * /var/www - Datastore for httpd
+#  * /var/log/httpd24 - Storage for logs when $HTTPD_LOG_TO_VOLUME is set
+# Environment:
+#  * $HTTPD_LOG_TO_VOLUME (optional) - When set, httpd will log into /var/log/httpd24
 
-FROM centos:7
-# FROM registry.access.redhat.com/rhel7-rhel-minimal:7.9
-MAINTAINER The CentOS Project <cloud-ops@centos.org>
-LABEL Vendor="CentOS" \
-      License=GPLv2 \
-      Version=2.4.6-40
+ENV HTTPD_VERSION=2.4
 
-USER 0
+ENV SUMMARY="Platform for running Apache httpd $HTTPD_VERSION or building httpd-based application" \
+    DESCRIPTION="Apache httpd $HTTPD_VERSION available as container, is a powerful, efficient, \
+and extensible web server. Apache supports a variety of features, many implemented as compiled modules \
+which extend the core functionality. \
+These can range from server-side programming language support to authentication schemes. \
+Virtual hosting allows one Apache installation to serve many different Web sites."
 
-RUN yum -y --setopt=tsflags=nodocs update && \
-    yum -y --setopt=tsflags=nodocs install httpd && \
+LABEL summary="$SUMMARY" \
+      description="$DESCRIPTION" \
+      io.k8s.description="$DESCRIPTION" \
+      io.k8s.display-name="Apache httpd $HTTPD_VERSION" \
+      io.openshift.expose-services="8080:http,8443:https" \
+      io.openshift.tags="builder,httpd,httpd24" \
+      name="rhscl/httpd-24-rhel7" \
+      version="$HTTPD_VERSION" \
+      com.redhat.license_terms="https://www.redhat.com/en/about/red-hat-end-user-license-agreements#rhel" \
+      com.redhat.component="httpd24-container" \
+      usage="s2i build https://github.com/sclorg/httpd-container.git --context-dir=examples/sample-test-app/ rhscl/httpd-24-rhel7 sample-server" \
+      maintainer="SoftwareCollections.org <sclorg@redhat.com>"
+
+EXPOSE 8080
+EXPOSE 8443
+
+RUN yum install -y yum-utils && \
+    prepare-yum-repositories rhel-server-rhscl-7-rpms && \
+    INSTALL_PKGS="gettext hostname nss_wrapper bind-utils httpd24 httpd24-mod_ssl httpd24-mod_ldap httpd24-mod_session httpd24-mod_auth_mellon httpd24-mod_security openssl" && \
+    yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
     yum-config-manager --enable remi-php73 && \
     yum -y install php php-common php-opcache php-mcrypt php-cli php-gd php-curl php-mysqlnd && \
-    yum clean all && \
+    yum -y clean all --enablerepo='*' && \
     php -v 
 
-COPY test.php /var/www/html/index.php
+ENV HTTPD_CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/httpd/ \
+    HTTPD_APP_ROOT=${APP_ROOT} \
+    HTTPD_CONFIGURATION_PATH=${APP_ROOT}/etc/httpd.d \
+    HTTPD_MAIN_CONF_PATH=/etc/httpd/conf \
+    HTTPD_MAIN_CONF_MODULES_D_PATH=/etc/httpd/conf.modules.d \
+    HTTPD_MAIN_CONF_D_PATH=/etc/httpd/conf.d \
+    HTTPD_TLS_CERT_PATH=/etc/httpd/tls \
+    HTTPD_VAR_RUN=/var/run/httpd \
+    HTTPD_DATA_PATH=/var/www \
+    HTTPD_DATA_ORIG_PATH=/opt/rh/httpd24/root/var/www \
+    HTTPD_LOG_PATH=/var/log/httpd24 \
+    HTTPD_SCL=httpd24
 
-EXPOSE 80
+# When bash is started non-interactively, to run a shell script, for example it
+# looks for this variable and source the content of this file. This will enable
+# the SCL for all scripts without need to do 'scl enable'.
+ENV BASH_ENV=${HTTPD_APP_ROOT}/scl_enable \
+    ENV=${HTTPD_APP_ROOT}/scl_enable \
+    PROMPT_COMMAND=". ${HTTPD_APP_ROOT}/scl_enable"
 
-# Simple startup script to avoid some issues observed with container restart
-ADD run-httpd.sh /run-httpd.sh
-RUN chmod -v +x /run-httpd.sh
+# COPY ./s2i/bin/ $STI_SCRIPTS_PATH
+# COPY ./root /
 
-# USER 1001
+# Reset permissions of filesystem to default values
+# RUN /usr/libexec/httpd-prepare && rpm-file-permissions
 
-CMD ["/run-httpd.sh"]
+USER 1001
+
+# Not using VOLUME statement since it's not working in OpenShift Online:
+# https://github.com/sclorg/httpd-container/issues/30
+# VOLUME ["${HTTPD_DATA_PATH}"]
+# VOLUME ["${HTTPD_LOG_PATH}"]
+
+CMD ["/usr/bin/run-httpd"]
