@@ -1,5 +1,5 @@
 <?php 
-$koneksi = mysqli_connect("mysql-db","user","pass","sampledb");
+$koneksi = mysqli_connect("hellodb","user","pass","sampledb");
 // $koneksi = mysqli_connect("10.100.131.187","root","root","metrocom");
 
 // Check connection
