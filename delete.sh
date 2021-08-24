@@ -1,2 +1,2 @@
 oc delete --all all
-oc delete pvc/${PVC-NAME}
+oc delete secret/mysql-db
