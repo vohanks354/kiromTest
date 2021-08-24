@@ -3,8 +3,9 @@
 # versi di docker hub adalah vohanks354/mgs-httpd-php:red #
 
 
-FROM centos:7
+# FROM centos:7
 # FROM registry.access.redhat.com/rhel7-rhel-minimal:7.9
+FROM docker.io/centos:7
 MAINTAINER The CentOS Project <cloud-ops@centos.org>
 LABEL Vendor="CentOS" \
       License=GPLv2 \
