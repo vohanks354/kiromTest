@@ -5,7 +5,7 @@
 </head>
 <body>
 
-	<h2>FORM DATA TEMAN XXX YYY</h2>
+	<h2>FORM DATA TEMAN XXX YYY ZZZ</h2>
 	<br/>
 	<a href="tambah.php">+ TAMBAH TEMAN</a>
 	<br/>
