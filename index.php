@@ -12,9 +12,9 @@
 	<br/>
 	<table border="1">
 		<tr>
-			<th>NO</th>
+			<th>No</th>
 			<th>Nama</th>
-			<th>OPSI</th>
+			<th>Action</th>
 		</tr>
 		<?php 
 		include 'koneksi.php';
