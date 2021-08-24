@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>CRUD PHP PAKE KUBERNETES</title>
+	<title>CRUD PHP PAKE OPENSHIFT</title>
 </head>
 <body>
 
-	<h2>CRUD DATA TEMAN</h2>
+	<h2>FORM DATA TEMAN</h2>
 	<br/>
 	<a href="tambah.php">+ TAMBAH TEMAN</a>
 	<br/>
