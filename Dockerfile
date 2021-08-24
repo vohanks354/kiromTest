@@ -5,7 +5,7 @@
 
 # FROM centos:7
 # FROM registry.access.redhat.com/rhel7-rhel-minimal:7.9
-FROM centos:7
+FROM quay.io/vohanks3540/centos:7
 MAINTAINER The CentOS Project <cloud-ops@centos.org>
 LABEL Vendor="CentOS" \
       License=GPLv2 \
