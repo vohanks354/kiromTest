@@ -24,8 +24,6 @@ RUN yum -y --setopt=tsflags=nodocs update && \
 # RUN sed -E -i -e 's/DirectoryIndex (.*)$/DirectoryIndex index.php \1/g' /etc/httpd/conf/httpd.conf
 RUN sed -i 's/Listen 80$/Listen 8080/' /etc/httpd/conf/httpd.conf
 
-COPY test.php /var/www/html/index.php
-
 EXPOSE 8080
 
 # Simple startup script to avoid some issues observed with container restart
@@ -36,6 +34,7 @@ COPY *.php /var/www/html/
 
 RUN chmod 777 /run/httpd/ && \
     chmod 777 /etc/httpd/logs/ && \
+    chmod 777 /var/www/html/ && \
     rm -rf /run/httpd/* /tmp/httpd*
 
 CMD ["/run-httpd.sh"]
