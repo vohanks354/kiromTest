@@ -1,7 +1,7 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: myphp
+  name: kirom-template
   annotations:
     openshift.io/display-name: Php + MySQL
     description: >
@@ -9,7 +9,7 @@ metadata:
     tags: instant-app,php,MySQL
     iconClass: icon-php
 labels:
-  template: php-mysql
+  template: kirom-template
 
 #############################################################################
 # Setting Parameter
