@@ -1,0 +1,274 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: kirom-php-mysql-template
+objects:
+- kind: ImageStream
+  apiVersion: image.openshift.io/v1
+  metadata:
+    annotations:
+    labels:
+      app: ${APP_NAME}
+    name: ${APP_NAME}
+  spec:
+    lookupPolicy:
+      local: false
+- kind: "BuildConfig"
+  apiVersion: build.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    runPolicy: "Serial" 
+    triggers: 
+      -
+        type: "GitHub"
+        github:
+          secret: ${SECRET}
+      - type: "Generic"
+        generic:
+          secret: ${SECRET}
+      -
+        type: "ImageChange"
+    source: 
+      git:
+        # uri: "https://github.com/tsrana/spring-boot-hello-world"
+        uri: ${APP_GIT_URL}
+    strategy:
+      type: Docker
+      dockerStrategy:
+        dockerfilePath: Dockerfile    
+    output: 
+      to:
+        kind: "ImageStreamTag"
+        name: ${APP_NAME}:latest
+- kind: "DeploymentConfig"
+  apiVersion: apps.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    template: 
+      metadata:
+        labels:
+          name: ${APP_NAME}
+          app: ${APP_NAME}
+      spec:
+        containers:
+          - env:
+            - name: DATABASE_NAME
+              value: ${MYSQL_DATABASE}
+            - name: DATABASE_PASSWORD
+              value: ${MYSQL_PASSWORD}
+            - name: DATABASE_SERVICE_NAME
+              value: ${DATABASE_SERVICE_NAME}
+            - name: DATABASE_USER
+              value: ${MYSQL_USER}
+            - name: RUN_ENV
+              value: OpenShift-With-Dockerfile 
+            name: ${APP_NAME}
+            imagePullPolicy: Always
+            ports:
+              - containerPort: 8080
+                protocol: TCP
+              - containerPort: 8443
+                protocol: TCP          
+        restartPolicy: Always
+    replicas: 1 
+    triggers:
+      - type: "ConfigChange" 
+      - type: "ImageChange" 
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - ${APP_NAME}
+          from:
+            kind: "ImageStreamTag"
+            name: ${APP_NAME}:latest
+    strategy: 
+      type: "Rolling"
+    paused: false 
+    revisionHistoryLimit: 2 
+    minReadySeconds: 0 
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+  spec:
+    ports:
+    - name: 8080-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    selector:
+      app: ${APP_NAME}
+    type: ClusterIP
+    sessionAffinity: None
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+    annotations:
+  spec:
+    to:
+      kind: Service
+      name: ${APP_NAME}
+      weight: 100
+    port:
+      targetPort: 8080-tcp
+  wildcardPolicy: None  
+#----------------------------------------------------------------#
+# MySQL 
+#----------------------------------------------------------------#
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+    labels:
+      app: ${APP_NAME_DB}
+    name: ${APP_NAME_DB}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APP_NAME_DB}
+      deploymentconfig: ${APP_NAME_DB}
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+        labels:
+          app: ${APP_NAME_DB}
+          deploymentconfig: ${APP_NAME_DB}
+      spec:
+        containers:
+        - env:
+          - name: MYSQL_DATABASE
+            value: ${MYSQL_DATABASE}
+          - name: MYSQL_PASSWORD
+            value: ${MYSQL_PASSWORD}
+          - name: MYSQL_USER
+            value: ${MYSQL_USER}
+          - name: MYSQL_ROOT_PASSWORD
+            value: ${MYSQL_ROOT_PASSWORD}
+          imagePullPolicy: IfNotPresent
+          name: ${APP_NAME_DB}
+          ports:
+          - containerPort: 3306
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/mysql/data
+            name: ${APP_NAME_DB}-volume-1
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: ${APP_NAME_DB}-volume-1
+          persistentVolumeClaim:
+            claimName: ${APP_NAME_DB}-claim
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APP_NAME_DB}
+        from:
+          kind: ImageStreamTag
+          name: ${APP_NAME_DB}:5.7
+          # namespace: openshift
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+    labels:
+      app: ${APP_NAME_DB}
+    name: ${APP_NAME_DB}
+  spec:
+    ports:
+    - name: 3306-tcp
+      port: 3306
+      protocol: TCP
+      targetPort: 3306
+    selector:
+      app: ${APP_NAME_DB}
+      deploymentconfig: ${APP_NAME_DB}
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+    name: ${APP_NAME_DB}-claim
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 300Mi
+    storageClassName: standard
+    volumeMode: Filesystem
+#----------------------------------------------------------------#
+# Parameter
+#----------------------------------------------------------------#
+parameters:
+- name: APP_NAME
+  displayName: Application Name
+  description: Nama aplikasi dan namespace
+  required: true
+- name: APP_NAME_DB
+  displayName: Application Name DB
+  description: Nama aplikasi dan namespace untuk DB
+  required: true
+- name: APP_GIT_URL
+  displayName: Application Source Git URL
+  description: The Git URL of the application source code
+  required: true
+  # value: https://github.com/tsrana/php-quotes
+- name: DATABASE_SERVICE_NAME
+  displayName: Database Service Name
+  description: name service of database
+  required: true
+- name: MYSQL_DATABASE
+  displayName: Database Name
+  description: name of database
+  required: true
+- name: MYSQL_USER
+  displayName: Database Username
+  description: username for database
+  required: true
+- name: MYSQL_PASSWORD
+  displayName: Database Password
+  description: password for database
+  required: true
+- name: MYSQL_ROOT_PASSWORD
+  displayName: Database Root Password
+  description: root password for database
+  required: true
+- name: SECRET
+  displayName: Webhook Secret
+  description: Secret for webhooks
+  generate: expression
+  from: '[a-zA-Z0-9]{40}'
